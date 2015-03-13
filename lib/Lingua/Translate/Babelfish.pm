@@ -12,6 +12,7 @@ package Lingua::Translate::Babelfish;
 use strict;
 use Carp;
 use LWP::UserAgent;
+use HTTP::Cookies;
 use HTTP::Request::Common qw(GET POST);
 
 # package globals:
@@ -36,7 +37,7 @@ Lingua::Translate::Babelfish - Translation back-end for Altavista's
      (
        backend => "Babelfish",
        babelfish_uri =>
-           'http://babelfish.yahoo.com/translate_txt',
+           'http://www.babelfish.com/',
        ua => LWP::UserAgent->new(),
      );
 
@@ -153,32 +154,38 @@ sub translate {
     die "Could not break up given text into chunks"
 	if (pos($text) and pos($text) < length($text));
 
+    my $ua = LWP::UserAgent->new(agent => "Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; Trident/5.0)");
+   $ua->timeout(10);
+   $ua->env_proxy;
+   $ua->add_handler("request_send",  sub { shift->dump; return });
+   $ua->add_handler("response_done", sub { shift->dump; return });
+
+    my $cookie_jar = HTTP::Cookies->new( file => "test.txt", autosave => 1); 
+    my $www = $ua->get( $self->{babelfish_uri} );
+    unless ($www->is_success) {     
+        die $www->status_line; 
+    } 
+    $ua->cookie_jar($cookie_jar);
+    $cookie_jar->extract_cookies($www);
+
     # the translated text
     my ($translated, $error);
 
   CHUNK:
     for my $chunk ( @chunks ) {
-	# make a new request object
-	my $req = POST ($self->{babelfish_uri},
-			[
-			 'doit' => 'done',
-			 'intl' => '1',
-			 'tt' => 'urltext',
-			 'trtext' => $chunk,
-			 'lp' => join("_", @{$self}{qw(src dest)}),
-			 'Submit' => 'Translate',
-			 'ei' => 'UTF-8',
-			 'fr' => 'bf-res',
-			]);
-
-	$req->header("Accept-Charset", "utf-8");
 
     RETRY:
 	# try several times to reach babelfish
 	for my $attempt ( 1 .. $self->{retries} + 1 ) {
 
-	    # go go gadget LWP::UserAgent
-	    my $res = $self->agent->request($req);
+		# make a new request object
+		my $res = $ua->get ($self->{babelfish_uri} . "tools/translate_files/ajax/session.php",
+				[
+				 'act' => 'save_session',
+				 'lang_s' => $self->{src},
+				 'lang_d' => $self->{dest},
+				 'phrase' => $chunk,
+				]);
 
 	    if( $res->is_success ){
 
@@ -218,6 +225,8 @@ use Unicode::MapUTF8 qw(to_utf8);
 # screen scrape, oh well.
 sub _extract_text {
     my($self, $html, $contenttype) = @_;
+    
+    warn($html);
 
     my ($translated) =
 	($html =~ m{<div \s id="result[^>]*>
@@ -337,8 +346,7 @@ sub config {
 	if ( $option eq "babelfish_uri" ) {
 
 	    # set the Babelfish URI
-	    ($self->{babelfish_uri} = $value) =~ m/\?(.*&)?$/
-		or croak "Babelfish URI `$value' not a query URI";
+	    ($self->{babelfish_uri} = $value);
 
 	} elsif ( $option eq "ua" ) {
 	    $self->{ua} = $value;
@@ -371,7 +379,7 @@ sub config {
 The uri to use when contacting Babelfish.
 
 The default value is
-"http://babelfish.yahoo.com/translate_txt?"
+"http://www.babelfish.com/"
 
 =item agent
 
@@ -401,7 +409,6 @@ use Pod::Constants
 	Pod::Constants::add_hook
 		('*item' => sub {
 		     my ($varname) = m/(\w+)/;
-		     #my ($default) = m/The default value is\s+"(.*)"\./s;
 		     my ($default) = m/The default value is\s+"(.*)"/s;
 		     config($varname => $default);
 		 }
