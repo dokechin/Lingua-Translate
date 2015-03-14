@@ -154,19 +154,19 @@ sub translate {
     die "Could not break up given text into chunks"
 	if (pos($text) and pos($text) < length($text));
 
-    my $ua = LWP::UserAgent->new(agent => "Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; Trident/5.0)");
-   $ua->timeout(10);
-   $ua->env_proxy;
-   $ua->add_handler("request_send",  sub { shift->dump; return });
-   $ua->add_handler("response_done", sub { shift->dump; return });
+    my $ua = LWP::UserAgent->new(agent => "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:36.0) Gecko/20100101 Firefox/36.0");
+    my $cookie_jar = HTTP::Cookies->new(); 
+    $ua->cookie_jar($cookie_jar);
 
-    my $cookie_jar = HTTP::Cookies->new( file => "test.txt", autosave => 1); 
+    $ua->timeout(10);
+    $ua->show_progress(1);
+    $ua->add_handler("request_send",  sub { shift->dump; return }); 
+    $ua->add_handler("response_done", sub { shift->dump; return }); 
+
     my $www = $ua->get( $self->{babelfish_uri} );
     unless ($www->is_success) {     
         die $www->status_line; 
     } 
-    $ua->cookie_jar($cookie_jar);
-    $cookie_jar->extract_cookies($www);
 
     # the translated text
     my ($translated, $error);
@@ -178,16 +178,27 @@ sub translate {
 	# try several times to reach babelfish
 	for my $attempt ( 1 .. $self->{retries} + 1 ) {
 
+		my $can_accept = HTTP::Message::decodable;
+		warn($can_accept);
 		# make a new request object
-		my $res = $ua->get ($self->{babelfish_uri} . "tools/translate_files/ajax/session.php",
-				[
+		my $res = $ua->post ($self->{babelfish_uri} . "tools/translate_files/ajax/session.php",
+				{
 				 'act' => 'save_session',
 				 'lang_s' => $self->{src},
 				 'lang_d' => $self->{dest},
 				 'phrase' => $chunk,
-				]);
+				},
+				'Host' => 'www.babelfish.com',
+			    'Accept' => 'application/json, text/javascript, */*; q=0.01',
+			    'Accept-Language' => 'ru,de,en=0.7,ja:q=0.3',
+			    'Accept-Encoding' => $can_accept,
+			    'Content-Type' => 'application/x-www-form-urlencoded; charset=UTF-8',
+			    'X-Requested-With' => "XMLHttpRequest",
+				);
 
 	    if( $res->is_success ){
+
+		print $res->decoded_content;
 
 		my $output = $self->_extract_text($res->as_string, $res->header("Content-Type"));
 
@@ -225,9 +236,9 @@ use Unicode::MapUTF8 qw(to_utf8);
 # screen scrape, oh well.
 sub _extract_text {
     my($self, $html, $contenttype) = @_;
-    
-    warn($html);
 
+    warn("_extract_text");
+	print $html;
     my ($translated) =
 	($html =~ m{<div \s id="result[^>]*>
 		    (?:<div \s style="padding:0.6em;">)?

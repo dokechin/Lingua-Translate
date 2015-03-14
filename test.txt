@@ -1,3 +1,3 @@
 #LWP-Cookies-1.0
-Set-Cookie3: __cfduid=d955b1a777256e347258f6cfb480e7b431426248308; path="/"; domain=.babelfish.com; path_spec; expires="2016-03-12 12:05:08Z"; HttpOnly; version=0
-Set-Cookie3: skip_contest=1; path="/"; domain=.babelfish.com; path_spec; expires="2015-03-14 00:00:00Z"; version=0
+Set-Cookie3: __cfduid=df996996b388ec0dcabd1dd1dc9a5cd951426284041; path="/"; domain=.babelfish.com; path_spec; expires="2016-03-12 22:00:41Z"; HttpOnly; version=0
+Set-Cookie3: skip_contest=1; path="/"; domain=.babelfish.com; path_spec; expires="2015-03-15 00:00:00Z"; version=0

@@ -12,7 +12,7 @@ ok(UNIVERSAL::isa($xl8r, "Lingua::Translate::Babelfish"),
    "Lingua::Translate::Babelfish->new()");
 
 # test basic translation
-my $german = $xl8r->translate("My hovercraft is full of eels.");
+my $german = $xl8r->translate("car");
 
 like($german, qr/mein.*Luftkissenfahrzeug.*(Aalen.*voll|voll.*Aalen)/i,
    "Lingua::Translate::Babelfish->translate [en -> de]");
